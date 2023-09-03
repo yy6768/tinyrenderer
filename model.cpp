@@ -7,7 +7,6 @@
 #include <vector>
 
 Model::Model(const char *filename) : verts_(), faces_() {
-  // 1. 按照文件读入
   std::ifstream in;
   in.open(filename, std::ifstream::in);
   if (in.fail()) return;
@@ -16,12 +15,12 @@ Model::Model(const char *filename) : verts_(), faces_() {
     std::getline(in, line);
     std::istringstream iss(line.c_str());
     char trash;
-    if (!line.compare(0, 2, "v ")) {  // 以“ v”开头，描述定点位置
+    if (!line.compare(0, 2, "v ")) {
       iss >> trash;
       Vec3f v;
-      for (int i = 0; i < 3; i++) iss >> v.raw[i];
+      for (int i = 0; i < 3; i++) iss >> v[i];
       verts_.push_back(v);
-    } else if (!line.compare(0, 2, "f ")) {  // 以f开头表示面， 指出定点坐标
+    } else if (!line.compare(0, 2, "f ")) {
       std::vector<int> f;
       int itrash, idx;
       iss >> trash;
