@@ -52,6 +52,9 @@ struct TGAColor {
     }
     return *this;
   }
+  inline void set_intensity(float intensity) {
+    b *= intensity, g *= intensity, r *= intensity;
+  }
 };
 
 class TGAImage {

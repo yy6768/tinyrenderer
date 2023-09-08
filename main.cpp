@@ -98,7 +98,7 @@ void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage & image,
     }
 }
 
-void triangle(Vec3f *pts, float* zbuffer, TGAImage &image, TGAColor color) {
+void triangle(Vec3f *pts, Vec2i *uvs, float* zbuffer, TGAImage &image, float intensity) {
   Vec2f bboxmin(std::numeric_limits<float>::max(),
                 std::numeric_limits<float>::max());
   Vec2f bboxmax(-std::numeric_limits<float>::max(),
@@ -111,17 +111,24 @@ void triangle(Vec3f *pts, float* zbuffer, TGAImage &image, TGAColor color) {
     }
   }
   Vec3f P;
+  Vec2i Puv;
   for (P.x = bboxmin.x; P.x <= bboxmax.x; P.x++) {
     for (P.y = bboxmin.y; P.y <= bboxmax.y; P.y++) {
       Vec3f bc_screen = barycentric(pts[0],pts[1], pts[2], P);
       if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0) continue;
       P.z = 0;
+      Puv.x = 0, Puv.y = 0;
       for (int i = 0; i < 3; ++i) {
         P.z += pts[i][2] * bc_screen[i];
+        Puv = Puv + Vec2i(uvs[i][0] * bc_screen[i], uvs[i][1] * bc_screen[i]);
       }
+      // std::cout<<uvs[1]<<std::endl;
       if (zbuffer[vec2idx(P.x, P.y)] < P.z){
         zbuffer[vec2idx(P.x, P.y)] = P.z;
-        image.set(P.x, P.y, color);
+        TGAColor texture = model->get_texture(Puv);
+        texture.set_intensity(intensity);
+        // std::cout<<Puv<<std::endl;
+        image.set(P.x, P.y, texture);
       } 
     }
   }
@@ -149,24 +156,24 @@ int main(int argc, char **argv) {
   TGAImage image(width, height, TGAImage::RGB);
   Vec3f light_dir(0, 0, -1);
   for (int i = 0; i < model->nfaces(); i++) {
-    std::vector<int> face = model->face(i);
+    std::vector<Vec3i> face = model->face(i);
     Vec3f world_coords[3];
     Vec3f pts[3];
+    Vec2i uvs[3];
     for (int i = 0; i < 3; i++){
-      Vec3f v = model->vert(face[i]);
+      Vec3f v = model->vert(face[i].x);
       pts[i] = world2screen(v);
       world_coords[i] = v;
+      uvs[i] = model->tcoords(face[i].y);
+      // std::cout<<uvs[i] << std::endl;
     }
     // 叉乘生成法向量
     Vec3f n = cross((world_coords[2] - world_coords[0]),
               (world_coords[1] - world_coords[0]));
     n.normalize();
-
     float intensity = n * light_dir;  // 夹角越小，强度越高
-    if (intensity > 0) {              // 判断是否遮挡
-      triangle(
-          pts, zbuffer, image,
-          TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
+    if (intensity > 0.) {              // 判断是否遮挡
+      triangle(pts, uvs, zbuffer, image, intensity);
     }
   }
 
