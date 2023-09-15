@@ -55,7 +55,6 @@ Vec3f Model::vert(int i) { return verts_[i]; }
 TGAColor Model::get_texture(Vec2i uv) { return texture_.get(uv.x, uv.y); }
 
 Vec2i Model::tcoords(int i) { 
-
   return Vec2i(tcoords_[i].x * texture_.get_width(), tcoords_[i].y * texture_.get_height()); 
 }
 
