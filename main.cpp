@@ -15,33 +15,55 @@ const int width = 800;
 const int height = 800;
 const int depth = 255;
 
-  Vec3f camera(0, 0, 3.);
+Vec3f eye(50., 10., 50.);
+Vec3f center(0, 0, 0);
 
-  Vec3f m2v(Matrix m) {
-    return Vec3f(m[0][0] / m[3][0], m[1][0] / m[3][0], m[2][0] / m[3][0]);
+Vec3f m2v(Matrix m) {
+  return Vec3f(m[0][0] / m[3][0], m[1][0] / m[3][0], m[2][0] / m[3][0]);
+}
+
+Matrix v2m(Vec3f v) {
+  Matrix m(4, 1);
+  m[0][0] = v.x;
+  m[1][0] = v.y;
+  m[2][0] = v.z;
+  m[3][0] = 1.f;
+  return m;
+}
+
+Matrix viewport(float x, float y, float w, float h) {
+  Matrix m = Matrix::identity(4);
+  m[0][3] = x + w / 2.f;
+  m[1][3] = y + h / 2.f;
+  m[2][3] = depth / 2.f;
+
+  m[0][0] = w / 2.f;
+  m[1][1] = h / 2.f;
+  m[2][2] = depth / 2.f;
+  return m;
+}
+
+/**
+ * @brief 
+ * @param eye the direction which camera points to
+ * @param center the center of object
+ * @param up defined by camera
+ * @return the lookat Matrix
+*/
+Matrix lookat(Vec3f eye, Vec3f center, Vec3f up) {
+  Vec3f z = (eye - center).normalize(); // 指向摄像机朝向-z,所以z轴方向是摄像机反方向
+  Vec3f x = cross(up, z).normalize(); // 指向摄影机右边
+  Vec3f y = cross(z, x).normalize(); // 摄影上方
+  Matrix Minv = Matrix::identity(4); // 基变换矩阵的逆矩阵
+  Matrix Tr = Matrix::identity(4); // 平移矩阵
+  for (int i = 0; i < 3;  ++i){
+    Minv[0][i] = x[i];
+    Minv[1][i] = y[i];
+    Minv[2][i] = z[i];
+    Tr[i][3] = -eye[i];
   }
-
-  Matrix v2m(Vec3f v) {
-    Matrix m(4, 1);
-    m[0][0] = v.x;
-    m[1][0] = v.y;
-    m[2][0] = v.z;
-    m[3][0] = 1.f;
-    return m;
-  }
-
-  Matrix viewport(float x, float y, float w, float h) {
-    Matrix m = Matrix::identity(4);
-    m[0][3] = x + w / 2.f;
-    m[1][3] = y + h / 2.f;
-    m[2][3] = depth / 2.f;
-
-    m[0][0] = w / 2.f;
-    m[1][1] = h / 2.f;
-    m[2][2] = depth / 2.f;
-    return m;
-  }
-
+  return Minv * Tr; 
+}
 
 inline int vec2idx(int x, int y) {
   return x + y * width;
@@ -51,27 +73,6 @@ inline Vec2i idxvec2(const int& id){
   return {id % width, id / width};
 }
 
-void line(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color) {
-  bool steep = false;
-  if (std::abs(p0.x - p1.x) < std::abs(p0.y - p1.y)) {
-    std::swap(p0.x, p0.y);
-    std::swap(p1.x, p1.y);
-    steep = true;
-  }
-  if (p0.x > p1.x) {
-    std::swap(p0, p1);
-  }
-
-  for (int x = p0.x; x <= p1.x; x++) {
-    float t = (x - p0.x) / (float)(p1.x - p0.x);
-    int y = p0.y * (1. - t) + p1.y * t;
-    if (steep) {
-      image.set(y, x, color);
-    } else {
-      image.set(x, y, color);
-    }
-  }
-}
 
 /**
  * @brief compute barycentric coords for triangles
@@ -129,14 +130,6 @@ void triangle(Vec3f *pts, Vec2i *uvs, int* zbuffer, TGAImage &image, float inten
   }
 }
 
-
-
-/**
- * 等价于perspective transform
- * 特殊的是，相机的位置在(0,0,-c)， 而投影远平面是固定的z=0 
- */
- 
-
 int main(int argc, char **argv) {
   if (2 == argc) {
     model = new Model(argv[1]);
@@ -154,7 +147,8 @@ int main(int argc, char **argv) {
   Vec3f light_dir(0, 0, -1);
   Matrix Projection = Matrix::identity(4);
   Matrix ViewPort   = viewport(width/8.0, height/8.0, width*3./4., height*3./4.);
-  Projection[3][2] = -1.f/camera.z;
+  Matrix ModelView  = lookat(eye, center, Vec3f(0, 1, 0));
+  Projection[3][2] = -1.f/(eye - center).norm();
   for (int i = 0; i < model->nfaces(); i++) {
     std::vector<Vec3i> face = model->face(i);
     Vec3f world_coords[3];
@@ -164,7 +158,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < 3; i++){
       Vec3f v = model->vert(face[i].x);
       // pts[i] = world2screen(v);
-      pts[i] = m2v(ViewPort * Projection * v2m(v));  
+      pts[i] = m2v(ViewPort * Projection * ModelView * v2m(v));  
       pts[i].x = int(pts[i].x + 0.5);
       pts[i].y = int(pts[i].y + 0.5);
       world_coords[i] = v;
