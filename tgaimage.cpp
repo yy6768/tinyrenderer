@@ -16,10 +16,8 @@ TGAImage::TGAImage(int w, int h, int bpp)
   memset(data, 0, nbytes);
 }
 
-TGAImage::TGAImage(const TGAImage& img) {
-  width = img.width;
-  height = img.height;
-  bytespp = img.bytespp;
+TGAImage::TGAImage(const TGAImage &img)
+    : data(NULL), width(img.width), height(img.height), bytespp(img.bytespp) {
   unsigned long nbytes = width * height * bytespp;
   data = new unsigned char[nbytes];
   memcpy(data, img.data, nbytes);
@@ -29,7 +27,7 @@ TGAImage::~TGAImage() {
   if (data) delete[] data;
 }
 
-TGAImage& TGAImage::operator=(const TGAImage& img) {
+TGAImage &TGAImage::operator=(const TGAImage &img) {
   if (this != &img) {
     if (data) delete[] data;
     width = img.width;
@@ -42,7 +40,7 @@ TGAImage& TGAImage::operator=(const TGAImage& img) {
   return *this;
 }
 
-bool TGAImage::read_tga_file(const char* filename) {
+bool TGAImage::read_tga_file(const char *filename) {
   if (data) delete[] data;
   data = NULL;
   std::ifstream in;
@@ -53,7 +51,7 @@ bool TGAImage::read_tga_file(const char* filename) {
     return false;
   }
   TGA_Header header;
-  in.read((char*)&header, sizeof(header));
+  in.read((char *)&header, sizeof(header));
   if (!in.good()) {
     in.close();
     std::cerr << "an error occured while reading the header\n";
@@ -71,7 +69,7 @@ bool TGAImage::read_tga_file(const char* filename) {
   unsigned long nbytes = bytespp * width * height;
   data = new unsigned char[nbytes];
   if (3 == header.datatypecode || 2 == header.datatypecode) {
-    in.read((char*)data, nbytes);
+    in.read((char *)data, nbytes);
     if (!in.good()) {
       in.close();
       std::cerr << "an error occured while reading the data\n";
@@ -99,7 +97,7 @@ bool TGAImage::read_tga_file(const char* filename) {
   return true;
 }
 
-bool TGAImage::load_rle_data(std::ifstream& in) {
+bool TGAImage::load_rle_data(std::ifstream &in) {
   unsigned long pixelcount = width * height;
   unsigned long currentpixel = 0;
   unsigned long currentbyte = 0;
@@ -114,13 +112,13 @@ bool TGAImage::load_rle_data(std::ifstream& in) {
     if (chunkheader < 128) {
       chunkheader++;
       for (int i = 0; i < chunkheader; i++) {
-        in.read((char*)colorbuffer.raw, bytespp);
+        in.read((char *)colorbuffer.bgra, bytespp);
         if (!in.good()) {
           std::cerr << "an error occured while reading the header\n";
           return false;
         }
         for (int t = 0; t < bytespp; t++)
-          data[currentbyte++] = colorbuffer.raw[t];
+          data[currentbyte++] = colorbuffer.bgra[t];
         currentpixel++;
         if (currentpixel > pixelcount) {
           std::cerr << "Too many pixels read\n";
@@ -129,14 +127,14 @@ bool TGAImage::load_rle_data(std::ifstream& in) {
       }
     } else {
       chunkheader -= 127;
-      in.read((char*)colorbuffer.raw, bytespp);
+      in.read((char *)colorbuffer.bgra, bytespp);
       if (!in.good()) {
         std::cerr << "an error occured while reading the header\n";
         return false;
       }
       for (int i = 0; i < chunkheader; i++) {
         for (int t = 0; t < bytespp; t++)
-          data[currentbyte++] = colorbuffer.raw[t];
+          data[currentbyte++] = colorbuffer.bgra[t];
         currentpixel++;
         if (currentpixel > pixelcount) {
           std::cerr << "Too many pixels read\n";
@@ -148,7 +146,7 @@ bool TGAImage::load_rle_data(std::ifstream& in) {
   return true;
 }
 
-bool TGAImage::write_tga_file(const char* filename, bool rle) {
+bool TGAImage::write_tga_file(const char *filename, bool rle) {
   unsigned char developer_area_ref[4] = {0, 0, 0, 0};
   unsigned char extension_area_ref[4] = {0, 0, 0, 0};
   unsigned char footer[18] = {'T', 'R', 'U', 'E', 'V', 'I', 'S', 'I', 'O',
@@ -161,21 +159,21 @@ bool TGAImage::write_tga_file(const char* filename, bool rle) {
     return false;
   }
   TGA_Header header;
-  memset((void*)&header, 0, sizeof(header));
+  memset((void *)&header, 0, sizeof(header));
   header.bitsperpixel = bytespp << 3;
   header.width = width;
   header.height = height;
   header.datatypecode =
       (bytespp == GRAYSCALE ? (rle ? 11 : 3) : (rle ? 10 : 2));
   header.imagedescriptor = 0x20;  // top-left origin
-  out.write((char*)&header, sizeof(header));
+  out.write((char *)&header, sizeof(header));
   if (!out.good()) {
     out.close();
     std::cerr << "can't dump the tga file\n";
     return false;
   }
   if (!rle) {
-    out.write((char*)data, width * height * bytespp);
+    out.write((char *)data, width * height * bytespp);
     if (!out.good()) {
       std::cerr << "can't unload raw data\n";
       out.close();
@@ -188,19 +186,19 @@ bool TGAImage::write_tga_file(const char* filename, bool rle) {
       return false;
     }
   }
-  out.write((char*)developer_area_ref, sizeof(developer_area_ref));
+  out.write((char *)developer_area_ref, sizeof(developer_area_ref));
   if (!out.good()) {
     std::cerr << "can't dump the tga file\n";
     out.close();
     return false;
   }
-  out.write((char*)extension_area_ref, sizeof(extension_area_ref));
+  out.write((char *)extension_area_ref, sizeof(extension_area_ref));
   if (!out.good()) {
     std::cerr << "can't dump the tga file\n";
     out.close();
     return false;
   }
-  out.write((char*)footer, sizeof(footer));
+  out.write((char *)footer, sizeof(footer));
   if (!out.good()) {
     std::cerr << "can't dump the tga file\n";
     out.close();
@@ -212,7 +210,7 @@ bool TGAImage::write_tga_file(const char* filename, bool rle) {
 
 // TODO: it is not necessary to break a raw chunk for two equal pixels (for the
 // matter of the resulting size)
-bool TGAImage::unload_rle_data(std::ofstream& out) {
+bool TGAImage::unload_rle_data(std::ofstream &out) {
   const unsigned char max_chunk_length = 128;
   unsigned long npixels = width * height;
   unsigned long curpix = 0;
@@ -245,7 +243,7 @@ bool TGAImage::unload_rle_data(std::ofstream& out) {
       std::cerr << "can't dump the tga file\n";
       return false;
     }
-    out.write((char*)(data + chunkstart),
+    out.write((char *)(data + chunkstart),
               (raw ? run_length * bytespp : bytespp));
     if (!out.good()) {
       std::cerr << "can't dump the tga file\n";
@@ -262,11 +260,19 @@ TGAColor TGAImage::get(int x, int y) {
   return TGAColor(data + (x + y * width) * bytespp, bytespp);
 }
 
-bool TGAImage::set(int x, int y, TGAColor c) {
+bool TGAImage::set(int x, int y, TGAColor &c) {
   if (!data || x < 0 || y < 0 || x >= width || y >= height) {
     return false;
   }
-  memcpy(data + (x + y * width) * bytespp, c.raw, bytespp);
+  memcpy(data + (x + y * width) * bytespp, c.bgra, bytespp);
+  return true;
+}
+
+bool TGAImage::set(int x, int y, const TGAColor &c) {
+  if (!data || x < 0 || y < 0 || x >= width || y >= height) {
+    return false;
+  }
+  memcpy(data + (x + y * width) * bytespp, c.bgra, bytespp);
   return true;
 }
 
@@ -293,26 +299,26 @@ bool TGAImage::flip_horizontally() {
 bool TGAImage::flip_vertically() {
   if (!data) return false;
   unsigned long bytes_per_line = width * bytespp;
-  unsigned char* line = new unsigned char[bytes_per_line];
+  unsigned char *line = new unsigned char[bytes_per_line];
   int half = height >> 1;
   for (int j = 0; j < half; j++) {
     unsigned long l1 = j * bytes_per_line;
     unsigned long l2 = (height - 1 - j) * bytes_per_line;
-    memmove((void*)line, (void*)(data + l1), bytes_per_line);
-    memmove((void*)(data + l1), (void*)(data + l2), bytes_per_line);
-    memmove((void*)(data + l2), (void*)line, bytes_per_line);
+    memmove((void *)line, (void *)(data + l1), bytes_per_line);
+    memmove((void *)(data + l1), (void *)(data + l2), bytes_per_line);
+    memmove((void *)(data + l2), (void *)line, bytes_per_line);
   }
   delete[] line;
   return true;
 }
 
-unsigned char* TGAImage::buffer() { return data; }
+unsigned char *TGAImage::buffer() { return data; }
 
-void TGAImage::clear() { memset((void*)data, 0, width * height * bytespp); }
+void TGAImage::clear() { memset((void *)data, 0, width * height * bytespp); }
 
 bool TGAImage::scale(int w, int h) {
   if (w <= 0 || h <= 0 || !data) return false;
-  unsigned char* tdata = new unsigned char[w * h * bytespp];
+  unsigned char *tdata = new unsigned char[w * h * bytespp];
   int nscanline = 0;
   int oscanline = 0;
   int erry = 0;
