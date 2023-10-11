@@ -110,6 +110,9 @@ vec<DIM, T> operator/(vec<DIM, T> lhs, const U& rhs) {
   return lhs;
 }
 
+/**
+ * 填充数据 最常用的是把三维向量变成四维齐次向量
+*/
 template <size_t LEN, size_t DIM, typename T>
 vec<LEN, T> embed(const vec<DIM, T>& v, T fill = 1) {
   vec<LEN, T> ret;
@@ -118,6 +121,9 @@ vec<LEN, T> embed(const vec<DIM, T>& v, T fill = 1) {
   return ret;
 }
 
+/**
+ * 截断数据，最常用的是吧四维向量变成三维
+*/
 template <size_t LEN, size_t DIM, typename T>
 vec<LEN, T> proj(const vec<DIM, T>& v) {
   vec<LEN, T> ret;
@@ -218,6 +224,14 @@ class mat {
     for (size_t i = DimRows; i--;)
       for (size_t j = DimCols; j--; ret[i][j] = cofactor(i, j))
         ;
+    return ret;
+  }
+  mat<DimCols, DimRows, T> invert() { return invert_transpose().transpose(); }
+  
+  mat<DimCols, DimRows, T> transpose() {
+    mat<DimCols, DimRows, T> ret;
+    for (size_t i = DimRows; i--; ret[i] = this->col(i))
+      ;
     return ret;
   }
 
